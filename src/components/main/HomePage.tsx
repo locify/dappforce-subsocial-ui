@@ -8,28 +8,31 @@ import { LatestSpaces } from './LatestSpaces';
 import { LatestPosts } from './LatestPosts';
 import { SpaceData, PostWithAllDetails } from '@subsocial/types';
 import { PageContent } from './PageWrapper';
+import partition from 'lodash.partition';
+import { isComment } from '../posts/view-post';
+import { ZERO } from '../utils';
 
-const ZERO = new BN(0);
-const FIVE = new BN(5);
+const FIFTY = new BN(50);
+const MAX_TO_SHOW = 5;
 
 type Props = {
   spacesData: SpaceData[]
-  postsData: PostWithAllDetails[]
+  postsData: PostWithAllDetails[],
+  commentData: PostWithAllDetails[]
 }
 
 const LatestUpdate: NextPage<Props> = (props: Props) => {
-  const { spacesData, postsData } = props;
+  const { spacesData, postsData, commentData } = props;
 
   return (
     <PageContent>
-      <div className='ui huge relaxed middle aligned divided list ProfilePreviews'>
-        <HeadMeta
-          title='Latest posts and spaces'
-          desc='Subsocial is an open decentralized social network'
-        />
-        <LatestPosts {...props} postsData={postsData} />
-        <LatestSpaces {...props} spacesData={spacesData} />
-      </div>
+      <HeadMeta
+        title='Latest posts and spaces'
+        desc='Subsocial is an open decentralized social network'
+      />
+      <LatestPosts {...props} postsData={postsData} type='post' />
+      <LatestPosts {...props} postsData={commentData} type='comment' />
+      <LatestSpaces {...props} spacesData={spacesData} />
     </PageContent>
 
   );
@@ -49,15 +52,21 @@ LatestUpdate.getInitialProps = async (): Promise<Props> => {
   const nextSpaceId = await substrate.nextSpaceId()
   const nextPostId = await substrate.nextPostId()
 
-  const latestSpaceIds = getLastNIds(nextSpaceId, FIVE);
-  const spacesData = await subsocial.findVisibleSpaces(latestSpaceIds)
+  const latestSpaceIds = getLastNIds(nextSpaceId, FIFTY);
+  const visibleSpacesData = await subsocial.findVisibleSpaces(latestSpaceIds) as SpaceData[]
+  const spacesData = visibleSpacesData.slice(0, MAX_TO_SHOW)
 
-  const latestPostIds = getLastNIds(nextPostId, FIVE);
-  const postsData = await subsocial.findVisiblePostsWithAllDetails(latestPostIds);
+  const latestPostIds = getLastNIds(nextPostId, FIFTY);
+  const allPostsData = await subsocial.findVisiblePostsWithAllDetails(latestPostIds);
+  const [ visibleCommentData, visiblePostsData ] = partition(allPostsData, (x) => isComment(x.post.struct.extension))
+
+  const postsData = visiblePostsData.slice(0, MAX_TO_SHOW)
+  const commentData = visibleCommentData.slice(0, MAX_TO_SHOW)
 
   return {
     spacesData,
-    postsData
+    postsData,
+    commentData
   }
 }
 

@@ -20,16 +20,12 @@
   background-color: #eee;
   padding: .25rem;
   padding-left: 1rem;
-  color: $color_ant_grey;
+  color: $color_secondary;
 }
 
-.DfButtonAsLink, .DfButtonAsLink:hover {
-  &.ui.basic.button:hover {
-    background: rgba(0,0,0,0) !important;
+.DfSecondaryColor {
+  color: $color_secondary;
+  &:hover, :active {
+    color: $color_secondary;
   }
-  background: rgba(0,0,0,0) !important;
-  border: 0 !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-  margin: 0 !important;
 }

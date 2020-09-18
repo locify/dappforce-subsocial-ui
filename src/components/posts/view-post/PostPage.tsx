@@ -16,6 +16,8 @@ import { getSpaceId, unwrapSubstrateId } from 'src/components/substrate';
 import partition from 'lodash.partition';
 import BN from 'bn.js'
 import { PageContent } from 'src/components/main/PageWrapper';
+import { isHidden, Loading } from 'src/components/utils';
+import { useLoadHiddenSpace } from 'src/components/spaces/helpers';
 
 const StatsPanel = dynamic(() => import('../PostStats'), { ssr: false });
 
@@ -27,15 +29,19 @@ export type PostDetailsProps = {
 
 export const PostPage: NextPage<PostDetailsProps> = ({ postDetails, replies, statusCode }) => {
   if (statusCode === 404) return <Error statusCode={statusCode} />
+  if (!postDetails || isHidden({ struct: postDetails.post.struct })) return <PostNotFound />
+
   const { post, ext, space } = postDetails
 
-  if (!post || !space) return <PostNotFound />
-
   const { struct, content } = post;
+
   if (!content) return null;
 
   const { title, body, image, canonical, tags } = content;
-  const spaceData = space || postDetails.space
+  const spaceData = space || postDetails.space || useLoadHiddenSpace(struct.created.account).myHiddenSpaces
+
+  if (!spaceData) return <Loading />
+
   const spaceStruct = spaceData.struct;
 
   const goToCommentsId = 'comments'
@@ -50,13 +56,13 @@ export const PostPage: NextPage<PostDetailsProps> = ({ postDetails, replies, sta
     : title
 
   return <>
-    <HiddenPostAlert post={postDetails} />
+    <HiddenPostAlert post={post.struct} />
     <PageContent>
       <Section className='DfContentPage DfEntirePost'> {/* TODO Maybe delete <Section /> because <PageContent /> includes it */}
         <HeadMeta title={title} desc={body} image={image} canonical={canonical} tags={tags} />
         <div className='DfRow'>
           {<h1 className='DfPostName'>{titleMsg}</h1>}
-          <PostDropDownMenu account={struct.created.account} post={struct} space={spaceStruct} />
+          <PostDropDownMenu post={struct} space={spaceStruct} />
         </div>
         <div className='DfRow'>
           <PostCreator postDetails={postDetails} withSpaceName space={spaceData} />
@@ -90,8 +96,10 @@ PostPage.getInitialProps = async (props): Promise<any> => {
   const postIdFromUrl = new BN(postId as string)
   const replyIds = await substrate.getReplyIdsByPostId(postIdFromUrl)
   const comments = await subsocial.findVisiblePostsWithAllDetails([ ...replyIds, postIdFromUrl ])
+
   const [ extPostsData, replies ] = partition(comments, x => x.post.struct.id.eq(postIdFromUrl))
-  const extPostData = extPostsData.pop()
+  const extPostData = extPostsData.pop() || await subsocial.findPostWithAllDetails(postIdFromUrl)
+
   const spaceIdFromPost = unwrapSubstrateId(extPostData?.post.struct.space_id)
   // If a space id of this post is not equal to the space id/handle from URL,
   // then redirect to the URL with the space id of this post.

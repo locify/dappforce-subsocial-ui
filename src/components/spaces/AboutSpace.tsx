@@ -1,6 +1,5 @@
 import { SpaceContent } from '@subsocial/types/offchain';
 import { nonEmptyStr } from '@subsocial/utils';
-import BN from 'bn.js';
 import mdToText from 'markdown-to-txt';
 import { NextPage } from 'next';
 import Error from 'next/error';
@@ -9,7 +8,6 @@ import { isBrowser } from 'react-device-detect';
 
 import { AuthorPreview } from '../profiles/address-views';
 import { DfMd } from '../utils/DfMd';
-import NoData from '../utils/EmptyList';
 import { HeadMeta } from '../utils/HeadMeta';
 import { return404 } from '../utils/next';
 import Section from '../utils/Section';
@@ -22,6 +20,7 @@ import { ViewSpaceProps } from './ViewSpaceProps';
 import withLoadSpaceDataById from './withLoadSpaceDataById';
 import { PageContent } from '../main/PageWrapper';
 import { getSpaceId } from '../substrate';
+import { SpaceNotFound } from './helpers';
 
 type Props = ViewSpaceProps
 
@@ -31,12 +30,12 @@ export const AboutSpacePage: NextPage<Props> = (props) => {
   const { spaceData } = props;
 
   if (!spaceData || !spaceData?.struct) {
-    return <NoData description={<span>Space not found</span>} />
+    return <SpaceNotFound />
   }
 
   const { owner } = props;
   const space = spaceData.struct;
-  const { id, created: { account, time } } = space;
+  const { created: { account, time } } = space;
 
   const [ content ] = useState(spaceData?.content || {} as SpaceContent);
   const { name, desc, image, tags } = content;
@@ -57,9 +56,7 @@ export const AboutSpacePage: NextPage<Props> = (props) => {
 
   return <PageContent leftPanel={isBrowser &&
     <SpaceNav
-      {...content}
-      spaceId={new BN(id)}
-      creator={account}
+      spaceData={spaceData}
     />
   }>
     <HeadMeta title={title} desc={mdToText(desc)} image={image} />
